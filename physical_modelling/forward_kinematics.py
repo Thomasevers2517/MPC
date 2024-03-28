@@ -4,7 +4,7 @@ from functools import partial
 from typing import Tuple, Dict, Any
 from numpy.typing import NDArray
 
-from jacobians import jacobian, jacobian_dot, jacobian_beta, jacobian_beta_dot
+
 
 
 # calculate beta_1 and beta_2 from q_1 and q_2 + x_b and y_b (pendulum base positions)
@@ -14,6 +14,8 @@ def reduced_forward_kinematics(physical_parameters: Dict, q: NDArray
 
     q_1 = q[0]
     q_2 = q[3]
+
+    # TODO: generalize this for all angles
 
     fraction_aux = np.cos(q_1 - q_2) + 2 * np.cos(q_1) - 2 * np.cos(q_2)
     sqrt_term = np.sqrt(-(fraction_aux - 1) / (fraction_aux - 3))
@@ -38,9 +40,9 @@ def reduced_forward_kinematics(physical_parameters: Dict, q: NDArray
 # differential kinematics
 def extended_reduced_forward_kinematics(physical_parameters: Dict, q: NDArray, q_dot: NDArray
 ) -> Tuple[NDArray, NDArray, NDArray, NDArray]:
-    q_1 = q[0]
-    q_2 = q[3]
-    q_1_dot = q_dot[3]
+    from .jacobians import jacobian, jacobian_beta
+
+    q_1_dot = q_dot[0]
     q_2_dot = q_dot[3]
 
     # velocity of the pendulum's base
@@ -50,13 +52,47 @@ def extended_reduced_forward_kinematics(physical_parameters: Dict, q: NDArray, q
     y_b_dot = x_dot[1]
 
     # relative velocities
-    q_dot_red = np.concatenate([q_1, q_2])
     J_beta = jacobian_beta(physical_parameters, q)
-    beta_dot = J_beta @ q_dot_red
+    q_dot_reduced = np.array([q_1_dot, q_2_dot])
+    beta_dot = J_beta @ q_dot_reduced
     beta_1_dot = beta_dot[0]
     beta_2_dot = beta_dot[1]
 
     return beta_1_dot, beta_2_dot, x_b_dot, y_b_dot
+
+
+
+def extended_reduced_forward_kinematics_with_accelerations(physical_parameters: Dict, q: NDArray, q_dot: NDArray
+) -> Tuple[NDArray, NDArray, NDArray, NDArray, NDArray, NDArray, NDArray, NDArray]:
+    from .jacobians import jacobian, jacobian_beta, jacobian_dot, jacobian_beta_dot
+    from .dynamics import continuous_forward_dynamics
+
+    beta_1_dot, beta_2_dot, x_b_dot, y_b_dot = extended_reduced_forward_kinematics(physical_parameters, q, q_dot)
+
+    q_1_dot = q_dot[0]
+    q_2_dot = q_dot[3]
+
+    q_ddot = continuous_forward_dynamics(physical_parameters, q, q_dot)
+    q_1_ddot = q_ddot[0]
+    q_2_ddot = q_ddot[3]
+
+    # acceleration of the pendulum's base
+    J = jacobian(physical_parameters, q)
+    J_dot = jacobian_dot(physical_parameters, q, q_dot)
+    x_ddot = J @ q_ddot + J_dot @ q_dot
+    x_b_ddot = x_ddot[0]
+    y_b_ddot = x_ddot[1]
+
+    # relative accelerations
+    J_beta = jacobian_beta(physical_parameters, q)
+    J_beta_dot = jacobian_beta_dot(physical_parameters, q, q_dot)
+    q_dot_reduced = np.array([q_1_dot, q_2_dot])
+    q_ddot_reduced = np.array([q_1_ddot, q_2_ddot])
+    beta_ddot = J_beta @ q_ddot_reduced + J_beta_dot @ q_dot_reduced
+    beta_1_ddot = beta_ddot[0]
+    beta_2_ddot = beta_ddot[1]
+
+    return beta_1_dot, beta_2_dot, x_b_dot, y_b_dot, beta_1_ddot, beta_2_ddot, x_b_ddot, y_b_ddot
 
 
 def forward_kinematics(physical_parameters: Dict, q: NDArray
@@ -91,6 +127,8 @@ def forward_kinematics(physical_parameters: Dict, q: NDArray
 # differential kinematics
 def extended_forward_kinematics(physical_parameters: Dict, q: NDArray, q_dot: NDArray, q_ddot: NDArray
 ) -> Dict[str, Tuple[NDArray, NDArray, NDArray, NDArray, NDArray, NDArray]]:
+    from .jacobians import jacobian, jacobian_dot
+
     L = physical_parameters['L']
 
     q_1 = q[0]
@@ -102,11 +140,14 @@ def extended_forward_kinematics(physical_parameters: Dict, q: NDArray, q_dot: ND
     theta_dot = q_dot[2]
     q_2_dot = q_dot[3]
     q_1_ddot = q_ddot[0]
+    phi_ddot = q_ddot[1]
+    theta_ddot = q_ddot[2]
     q_2_ddot = q_ddot[3]
 
     beta_1, beta_2, _, _ = reduced_forward_kinematics(physical_parameters, q)
     x_A, x_B, x_C, x_D, x_E, x_P = forward_kinematics(physical_parameters, q)
-    beta_1_dot, beta_2_dot, x_b_dot, y_b_dot = extended_reduced_forward_kinematics(physical_parameters, q, q_dot)
+    beta_1_dot, beta_2_dot, x_b_dot, y_b_dot, beta_1_ddot, beta_2_ddot, x_b_ddot, y_b_ddot \
+        = extended_reduced_forward_kinematics_with_accelerations(physical_parameters, q, q_dot)
 
     J = jacobian(physical_parameters, q)
     J_dot = jacobian_dot(physical_parameters, q, q_dot)
@@ -144,7 +185,39 @@ def extended_forward_kinematics(physical_parameters: Dict, q: NDArray, q_dot: ND
                          - L * np.sin(q_2) * q_2_dot ** 2 + L * np.cos(q_2) * q_2_ddot,
                          0])
     x_E_ddot = np.zeros(3)
-    x_P_ddot = 0  # TODO: implement
+    x_P_ddot = x_C_ddot + L * np.array([+ phi_ddot*np.sin(beta_1 + q_1)*np.cos(phi)*np.cos(theta)
+                                        - phi_dot**2*np.sin(beta_1 + q_1)*np.sin(phi)*np.cos(theta)
+                                        - 2*phi_dot*theta_dot*np.sin(beta_1 + q_1)*np.sin(theta)*np.cos(phi)
+                                        + 2*phi_dot*(beta_1_dot + q_1_dot)*np.cos(beta_1 + q_1)*np.cos(phi)*np.cos(theta)
+                                        - theta_ddot*np.sin(beta_1 + q_1)*np.sin(phi)*np.sin(theta)
+                                        + theta_ddot*np.cos(beta_1 + q_1)*np.cos(theta)
+                                        - theta_dot**2*np.sin(beta_1 + q_1)*np.sin(phi)*np.cos(theta)
+                                        - theta_dot**2*np.sin(theta)*np.cos(beta_1 + q_1)
+                                        - 2*theta_dot*(beta_1_dot + q_1_dot)*np.sin(beta_1 + q_1)*np.cos(theta)
+                                        - 2*theta_dot*(beta_1_dot + q_1_dot)*np.sin(phi)*np.sin(theta)*np.cos(beta_1 + q_1)
+                                        - (beta_1_ddot + q_1_ddot)*np.sin(beta_1 + q_1)*np.sin(theta)
+                                        + (beta_1_ddot + q_1_ddot)*np.sin(phi)*np.cos(beta_1 + q_1)*np.cos(theta)
+                                        - (beta_1_dot + q_1_dot)**2*np.sin(beta_1 + q_1)*np.sin(phi)*np.cos(theta)
+                                        - (beta_1_dot + q_1_dot)**2*np.sin(theta)*np.cos(beta_1 + q_1),
+                                        - phi_ddot*np.cos(beta_1 + q_1)*np.cos(phi)*np.cos(theta)
+                                        + phi_dot**2*np.sin(phi)*np.cos(beta_1 + q_1)*np.cos(theta)
+                                        + 2*phi_dot*theta_dot*np.sin(theta)*np.cos(beta_1 + q_1)*np.cos(phi)
+                                        + 2*phi_dot*(beta_1_dot + q_1_dot)*np.sin(beta_1 + q_1)*np.cos(phi)*np.cos(theta)
+                                        + theta_ddot*np.sin(beta_1 + q_1)*np.cos(theta)
+                                        + theta_ddot*np.sin(phi)*np.sin(theta)*np.cos(beta_1 + q_1)
+                                        - theta_dot**2*np.sin(beta_1 + q_1)*np.sin(theta)
+                                        + theta_dot**2*np.sin(phi)*np.cos(beta_1 + q_1)*np.cos(theta)
+                                        - 2*theta_dot*(beta_1_dot + q_1_dot)*np.sin(beta_1 + q_1)*np.sin(phi)*np.sin(theta)
+                                        + 2*theta_dot*(beta_1_dot + q_1_dot)*np.cos(beta_1 + q_1)*np.cos(theta)
+                                        + (beta_1_ddot + q_1_ddot)*np.sin(beta_1 + q_1)*np.sin(phi)*np.cos(theta)
+                                        + (beta_1_ddot + q_1_ddot)*np.sin(theta)*np.cos(beta_1 + q_1)
+                                        - (beta_1_dot + q_1_dot)**2*np.sin(beta_1 + q_1)*np.sin(theta)
+                                        + (beta_1_dot + q_1_dot)**2*np.sin(phi)*np.cos(beta_1 + q_1)*np.cos(theta),
+                                        - phi_ddot*np.sin(phi)*np.cos(theta)
+                                        - phi_dot**2*np.cos(phi)*np.cos(theta)
+                                        + 2*phi_dot*theta_dot*np.sin(phi)*np.sin(theta)
+                                        - theta_ddot*np.sin(theta)*np.cos(phi)
+                                        - theta_dot**2*np.cos(phi)*np.cos(theta)])
 
     kinematics_dict = {'x': forward_kinematics(physical_parameters, q),
                        'x_dot': (x_A_dot, x_B_dot, x_C_dot, x_D_dot, x_E_dot, x_P_dot),

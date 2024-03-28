@@ -3,6 +3,7 @@ import numpy as np
 from typing import Callable
 from numpy.typing import NDArray
 
+
 def rk4_step(ode_fun: Callable, x: NDArray, dt: NDArray) -> NDArray:
     k1 = ode_fun(x)
     k2 = ode_fun(x + dt * k1 / 2)

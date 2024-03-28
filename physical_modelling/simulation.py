@@ -4,8 +4,8 @@ from functools import partial
 from typing import Callable, Dict, Optional, Tuple
 from numpy.typing import NDArray
 
-from dynamics import discrete_forward_dynamics
-from forward_kinematics import extended_forward_kinematics, calculate_link_endpoints
+from .dynamics import discrete_forward_dynamics
+from .forward_kinematics import extended_forward_kinematics, calculate_link_endpoints
 
 
 def simulate_robot(
@@ -18,8 +18,8 @@ def simulate_robot(
     q_des_ts: Optional[NDArray] = None,
     q_dot_des_ts: Optional[NDArray] = None,
     q_ddot_des_ts: Optional[NDArray] = None,
-    ctrl_ff: Callable = lambda q, q_dot, q_des, q_dot_des, q_ddot_des: np.zeros((4,)),
-    ctrl_fb: Callable = lambda q, q_dot, q_des, q_dot_des: np.zeros((4,)),
+    ctrl_ff: Callable = lambda q, q_dot, q_des, q_dot_des, q_ddot_des: np.zeros((2,)),
+    ctrl_fb: Callable = lambda q, q_dot, q_des, q_dot_des: np.zeros((2,)),
 ) -> Dict[str, NDArray]:
     if discrete_forward_dynamics_fn is None:
         discrete_forward_dynamics_fn = partial(discrete_forward_dynamics, physical_parameters)
@@ -39,12 +39,12 @@ def simulate_robot(
     num_time_steps = t_ts.shape[0]
     dt = t_ts[1] - t_ts[0]
 
-    step_simulator_fn = partial(step_simulator, physical_parameters, discrete_forward_dynamics_fn, ctrl_ff, ctrl_fb)
+    step_simulator_fn = partial(_step_simulator, physical_parameters, discrete_forward_dynamics_fn, ctrl_ff, ctrl_fb)
 
     input_ts = dict(t_ts=t_ts, tau_ext_ts=tau_ext_ts, q_des_ts=q_des_ts,
-                    q_dpt_des_ts=q_dot_des_ts, q_ddot_des_ts=q_ddot_des_ts)
+                    q_dot_des_ts=q_dot_des_ts, q_ddot_des_ts=q_ddot_des_ts)
 
-    carry = dict(t=t_ts[0] - dt, q=q_0, q_dot=q_dot_0)
+    carry = dict(t=t_ts[0], q=q_0, q_dot=q_dot_0)
 
     _sim_ts = []
     for time_idx in range(num_time_steps):
@@ -58,7 +58,7 @@ def simulate_robot(
     return sim_ts
 
 
-def step_simulator(
+def _step_simulator(
     physical_parameters: dict,
     discrete_forward_dynamics_fn: Callable,
     ctrl_ff: Callable,
@@ -69,7 +69,7 @@ def step_simulator(
     # extract the current state from the carry dictionary
     t_curr = carry["t"]
     q_curr = carry["q"]
-    q_dot_curr = carry["q_d"]
+    q_dot_curr = carry["q_dot"]
 
     # compute time step
     dt = input["t_ts"] - t_curr
@@ -96,7 +96,7 @@ def step_simulator(
 
     # save the current state and the state transition data
     step_data = dict(
-        t_ts=carry["t"],
+        t_ts=t_curr,
         q_ts=q_curr,
         q_dot_ts=q_dot_curr,
         q_ddot_ts=q_ddot,

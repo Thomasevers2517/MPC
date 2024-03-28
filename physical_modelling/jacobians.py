@@ -3,7 +3,7 @@ import numpy as np
 from typing import Tuple, Dict, Any
 from numpy.typing import NDArray
 
-from forward_kinematics import reduced_forward_kinematics, extended_reduced_forward_kinematics
+from .forward_kinematics import reduced_forward_kinematics
 
 
 def jacobian(physical_parameters: Dict, q: NDArray
@@ -52,6 +52,8 @@ def jacobian_beta(physical_parameters: Dict, q: NDArray
 
 def jacobian_dot(physical_parameters: Dict, q: NDArray, q_dot: NDArray
 ) -> NDArray:
+    from physical_modelling.forward_kinematics import extended_reduced_forward_kinematics
+
     L = physical_parameters['L']
 
     q_1 = q[0]
@@ -117,6 +119,8 @@ def _jacobian_beta_dot_ii(arg_num, arg_den, arg_num_dot, arg_den_dot):
 
 def jacobian_beta_dot(physical_parameters: Dict, q: NDArray, q_dot: NDArray
 ) -> NDArray:
+    from physical_modelling.forward_kinematics import extended_reduced_forward_kinematics
+
     q_1 = q[0]
     q_2 = q[3]
     beta_1, beta_2, _, _ = reduced_forward_kinematics(physical_parameters, q)

@@ -4,8 +4,8 @@ from typing import Dict, Tuple
 from numpy.typing import NDArray
 from functools import partial
 
-from forward_kinematics import reduced_forward_kinematics, extended_reduced_forward_kinematics, forward_kinematics
-from dynamical_matrices import dynamical_matrices, calculate_tau_bar
+# from .forward_kinematics import reduced_forward_kinematics, extended_reduced_forward_kinematics, forward_kinematics
+from .dynamical_matrices import dynamical_matrices, calculate_tau_bar
 from utils import rk4_step
 
 
@@ -17,8 +17,10 @@ def continuous_forward_dynamics(
 ) -> NDArray:
     M, C, g = dynamical_matrices(physical_parameters, q, q_dot)
 
+    tau_extended = np.insert(tau, 1, np.zeros(2)) if len(tau) == 2 else tau
+
     # link angular accelerations
-    q_dd = np.linalg.inv(M) @ (tau - C @ q_dot - g)
+    q_dd = np.linalg.inv(M) @ (tau_extended - C @ q_dot - g)
 
     return q_dd
 
@@ -41,10 +43,15 @@ def continuous_state_space_dynamics(
     physical_parameters: dict,
     x: NDArray,
     tau: NDArray,
-    available_states = NDArray
+    available_states: NDArray = None
 ) -> Tuple[NDArray, NDArray]:
+    if available_states is None:
+        available_states = np.arange(len(x))
+    if available_states.dtype != np.int32:
+        available_states = np.array(available_states, dtype='int32')
+
     # split the state into link angles and velocities
-    q, q_dot = np.split(x, 4)
+    q, q_dot = np.split(x, 2)
 
     # compute the link angular accelerations
     q_ddot = continuous_forward_dynamics(physical_parameters, q, q_dot, tau)
@@ -53,7 +60,7 @@ def continuous_state_space_dynamics(
     dx_dt = np.concatenate([q_dot, q_ddot])
 
     # the system output are the two link angles
-    y = q[available_states]
+    y = x[available_states]
 
     return dx_dt, y
 
