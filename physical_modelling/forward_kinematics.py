@@ -5,8 +5,6 @@ from typing import Tuple, Dict, Any
 from numpy.typing import NDArray
 
 
-
-
 # calculate beta_1 and beta_2 from q_1 and q_2 + x_b and y_b (pendulum base positions)
 def reduced_forward_kinematics(physical_parameters: Dict, q: NDArray
 ) -> Tuple[float, float, float, float]:
@@ -15,20 +13,34 @@ def reduced_forward_kinematics(physical_parameters: Dict, q: NDArray
     q_1 = q[0]
     q_2 = q[3]
 
-    # TODO: generalize this for all angles
+    # TODO: generalize this for all angles (may not be necessary with state constraints and too much work)
+
+    x_B = L * np.cos(q_1)
+    y_B = L * np.sin(q_1)
+    x_D = 2*L + L * np.cos(q_2)
+    y_D = L * np.sin(q_2)
+    p_B = np.array([x_B, y_B])
+    p_D = np.array([x_D, y_D])
+    if np.linalg.norm(p_B - p_D) > 2*L:
+        # configuration not possible
+        return 0, 0, 0, 0
 
     fraction_aux = np.cos(q_1 - q_2) + 2 * np.cos(q_1) - 2 * np.cos(q_2)
     sqrt_term = np.sqrt(-(fraction_aux - 1) / (fraction_aux - 3))
 
-    x_b1 = L / 2 * (2 + np.cos(q_1) + np.cos(q_2)) + L / 2 * (np.sin(q_1) - np.sin(q_2)) * sqrt_term
-    x_b2 = L / 2 * (2 + np.cos(q_1) + np.cos(q_2)) - L / 2 * (np.sin(q_1) - np.sin(q_2)) * sqrt_term
+    x_b_1 = L / 2 * (2 + np.cos(q_1) + np.cos(q_2)) + L / 2 * (np.sin(q_1) - np.sin(q_2)) * sqrt_term
+    x_b_2 = L / 2 * (2 + np.cos(q_1) + np.cos(q_2)) - L / 2 * (np.sin(q_1) - np.sin(q_2)) * sqrt_term
 
-    y_b1 = L / 2 * (np.sin(q_1) + np.sin(q_2)) + L / 2 * (np.cos(q_2) - np.cos(q_1) + 2) * sqrt_term
-    y_b2 = L / 2 * (np.sin(q_1) + np.sin(q_2)) - L / 2 * (np.cos(q_2) - np.cos(q_1) + 2) * sqrt_term
+    y_b_1 = L / 2 * (np.sin(q_1) + np.sin(q_2)) + L / 2 * (np.cos(q_2) - np.cos(q_1) + 2) * sqrt_term
+    y_b_2 = L / 2 * (np.sin(q_1) + np.sin(q_2)) - L / 2 * (np.cos(q_2) - np.cos(q_1) + 2) * sqrt_term
 
-    # select correct x_b, y_b (with proper state constraints this should be true TODO: check this
-    x_b = x_b1
-    y_b = y_b1
+    # select correct x_b, y_b (with proper state constraints this should be true, i.e. close to the equilibrium point)
+    if np.abs(q_2 - q_1) <= np.pi:
+        x_b = x_b_1
+        y_b = y_b_1
+    else:
+        x_b = x_b_2
+        y_b = y_b_2
 
     # incorrect formula in the paper
     beta_1 = np.arctan2(y_b - L * np.sin(q_1), x_b - L * np.cos(q_1)) - q_1
@@ -59,7 +71,6 @@ def extended_reduced_forward_kinematics(physical_parameters: Dict, q: NDArray, q
     beta_2_dot = beta_dot[1]
 
     return beta_1_dot, beta_2_dot, x_b_dot, y_b_dot
-
 
 
 def extended_reduced_forward_kinematics_with_accelerations(physical_parameters: Dict, q: NDArray, q_dot: NDArray

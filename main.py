@@ -1,79 +1,79 @@
 import numpy as np
 import control as ct
+from functools import partial
 
 import physical_modelling.initialisation as init
 import animation
 from physical_modelling.forward_kinematics import calculate_link_endpoints
-from physical_modelling.simulation import simulate_robot
+from physical_modelling.dynamics import continuous_inverse_dynamics, continuous_state_space_dynamics
+from physical_modelling.simulation import simulate_uncontrolled_system
+from controllers import control_with_lqr_continuous, control_with_lqr_discrete
+from plot_results import plot_errors, plot_trajectories
 
+# simulation parameters
+SIM_DT = 0.001    # s
+SIM_DURATION = 1  # s
 
-def set_initial_conditions():
-    q_1_0 = 0
-    phi_0 = np.deg2rad(-2)
-    theta_0 = np.deg2rad(2)
-    q_2_0 = np.pi / 2
+# initial conditions
+Q_1_0 = 0                   # [rad]
+PHI_0 = np.deg2rad(2)       # [rad]
+THETA_0 = np.deg2rad(-2)    # [rad]
+Q_2_0 = np.pi / 2           # [rad]
+Q_1_DOT_0 = 0               # [rad]
+PHI_DOT_0 = 0               # [rad]
+THETA_DOT_0 = 0             # [rad]
+Q_2_DOT_0 = 0               # [rad]
 
-    q_1_dot_0 = 0
-    phi_dot_0 = 0
-    theta_dot_0 = 0
-    q_2_dot_0 = 0
-
-    q_0_ = init.initialize_q(q_1_0, phi_0, theta_0, q_2_0)
-    q_dot_0_ = init.initialize_q_dot(q_1_dot_0, phi_dot_0, theta_dot_0, q_2_dot_0)
-
-    return q_0_, q_dot_0_
-
-def generate_t_ts():
-    sim_dt = 0.001
-    sim_duration = 5
-
-    sim_length = int(sim_duration / sim_dt)
-    t_ts = sim_dt * np.arange(sim_length)
-
-    return t_ts, sim_length
+# control parameters
+CTRL_DT = 0.001
+Q = np.diag([7, 6, 6, 7, 0.0001, 0.0001, 0.0001, 0.0001])
+R = np.diag([18, 18])
 
 
 if __name__ == "__main__":
-    q_0, q_dot_0 = set_initial_conditions()
     physical_parameters = init.initialize_physical_parameters()
+    t_ts_uncontrolled, sim_length_uncontrolled = init.generate_t_ts(SIM_DT, 0.65)  # singularity at t=0.65 s
+    t_ts, sim_length = init.generate_t_ts(SIM_DT, SIM_DURATION)
+    q_0, q_dot_0 = init.set_initial_conditions(Q_1_0, PHI_0, THETA_0, Q_2_0,
+                                               Q_1_DOT_0, PHI_DOT_0, THETA_DOT_0, Q_2_DOT_0)
 
     link_ends = calculate_link_endpoints(physical_parameters, q_0)
-    # Dynamics.plot_mechanism_3d(link_ends)
+    # animation.plot_mechanism_3d(link_ends)
 
-    t_ts, sim_length = generate_t_ts()
+    # couldn't get this to work
+    # sim_ts = simulate_robot(
+    #     physical_parameters=physical_parameters,
+    #     t_ts=t_ts,
+    #     discrete_forward_dynamics_fn=partial(linearized_discrete_forward_dynamics,
+    #                                          Ad, Bd, Cd, Dd, q_eq, q_dot_eq, tau_eq),
+    #     q_0=q_0,
+    #     q_dot_0=q_dot_0,
+    #     ctrl_fb=partial(lqr, Ad, Bd, Q, R),
+    # )
 
-    # sys = ct.NonlinearIOSystem(state_update, output, inputs=4, params=physical_parameters)
-    # t = np.linspace(0, 5, 100, endpoint=False)
-    # tau = np.zeros((len(t), 4))
-    # x0 = np.concatenate([q_0, q_dot_0])
-    # results = ct.input_output_response(sys, t, tau.T, x0)
+    dt = CTRL_DT
+    q_eq = np.array([0, 0, 0, np.pi/2])
+    q_dot_eq = np.zeros(4)
+    q_ddot_eq = np.zeros(4)
 
-    if False:
-        num_frames = 200
-        q_1_test = np.linspace(0, np.pi / 2, num_frames)
-        q_2_test = np.linspace(np.pi / 2, np.pi, num_frames)
-        phi_test = np.linspace(0, np.pi / 1, num_frames)
-        theta_test = np.linspace(0, 0, num_frames)
-        q_test = np.array([q_1_test, phi_test, theta_test, q_2_test]).T
-        q_dot_test = np.pi/10 * np.ones((num_frames, 4))
-        link_ends_list = np.array([np.zeros_like(calculate_link_endpoints(physical_parameters, q_0))] * num_frames)
-        for i in range(num_frames):
-            link_ends_list[i] = calculate_link_endpoints(physical_parameters, q_test[i])
+    t_uncontrolled, y_uncontrolled = simulate_uncontrolled_system(physical_parameters, t_ts_uncontrolled,
+                                                                  sim_length_uncontrolled, q_0, q_dot_0)
+    t_lqr_cont, y_lqr_cont = control_with_lqr_continuous(physical_parameters, t_ts, Q, R,
+                                                         q_0, q_dot_0, q_eq, q_dot_eq, q_ddot_eq)
+    t_lqr_discrete, y_lqr_discrete = control_with_lqr_discrete(physical_parameters, t_ts, dt, Q, R,
+                                                               q_0, q_dot_0, q_eq, q_dot_eq, q_ddot_eq)
 
-        animation.animate_mechanism_3d(link_ends_list)
+    t = t_lqr_discrete
+    y = y_lqr_discrete
 
-    sim_ts = simulate_robot(
-        physical_parameters=physical_parameters,
-        t_ts=t_ts,
-        q_0=q_0,
-        q_dot_0=q_dot_0,
-    )
-
+    plot_errors(t, y[:4, :], q_eq)
+    plot_trajectories(t, y[:4, :], q_eq)
     link_ends_list = np.array([np.zeros_like(calculate_link_endpoints(physical_parameters, q_0))] * sim_length)
     for i in range(sim_length):
-        q_i = sim_ts['q_ts'][i]
+        # q_i = sim_ts['q_ts'][i]
+        q_i = y[:4, i]
         link_ends_list[i] = calculate_link_endpoints(physical_parameters, q_i)
-    animation.animate_mechanism_3d(link_ends_list)
+    animation.animate_mechanism_3d(link_ends_list, dt)
 
     pass
 

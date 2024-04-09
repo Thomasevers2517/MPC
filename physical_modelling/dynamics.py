@@ -5,7 +5,7 @@ from numpy.typing import NDArray
 from functools import partial
 
 # from .forward_kinematics import reduced_forward_kinematics, extended_reduced_forward_kinematics, forward_kinematics
-from .dynamical_matrices import dynamical_matrices, calculate_tau_bar
+from .dynamical_matrices import dynamical_matrices
 from utils import rk4_step
 
 
@@ -49,6 +49,8 @@ def continuous_state_space_dynamics(
         available_states = np.arange(len(x))
     if available_states.dtype != np.int32:
         available_states = np.array(available_states, dtype='int32')
+    if len(tau) == 2:
+        tau = np.insert(tau, 1, np.zeros(2))
 
     # split the state into link angles and velocities
     q, q_dot = np.split(x, 2)
@@ -82,16 +84,25 @@ def discrete_forward_dynamics(
     )
     q_next, q_dot_next = np.split(x_next, 2)
 
+    # check validity of next step and if it would be impossible, force next joint angles to be the current ones
+    L = physical_parameters['L']
+    q_1 = q_next[0]
+    q_2 = q_next[3]
+    p_B = np.array([L * np.cos(q_1), L * np.sin(q_1)])
+    p_D = np.array([2 * L + L * np.cos(q_2), L * np.sin(q_2)])
+    if np.linalg.norm(p_B - p_D) > 2 * L:
+        q_next[[0, 3]] = q_curr[[0, 3]]
+
     return q_next, q_dot_next, q_ddot
 
 
-def continuous_linear_state_space_representation(
-    physical_parameters: dict,
-    q_eq: NDArray,
-    q_dot_eq: NDArray = np.zeros((2,)),
-    tau_eq: NDArray = np.zeros((2,)),
-) -> Tuple[NDArray, NDArray, NDArray, NDArray]:
-    pass
+# def continuous_linear_state_space_representation(
+#     physical_parameters: dict,
+#     q_eq: NDArray,
+#     q_dot_eq: NDArray = np.zeros((2,)),
+#     tau_eq: NDArray = np.zeros((2,)),
+# ) -> Tuple[NDArray, NDArray, NDArray, NDArray]:
+#     pass
 
 
 def continuous_closed_loop_linear_state_space_representation(
@@ -101,8 +112,5 @@ def continuous_closed_loop_linear_state_space_representation(
     tau_eq: NDArray,
     q_des: NDArray,
     q_dot_des: NDArray,
-    kp: NDArray = np.zeros((2, 2)),
-    kd: NDArray = np.zeros((2, 2)),
 ) -> Tuple[NDArray, NDArray, NDArray, NDArray]:
     pass
-

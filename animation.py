@@ -27,13 +27,10 @@ def plot_mechanism_3d(link_ends):
     plt.show()
 
 
-def update(frame, link_ends_list, lines, points):
+def update(frame, link_ends_list, lines, points, axis, dt):
     link_ends_list_current = link_ends_list[frame]
 
     for i, link in enumerate(link_ends_list_current):
-        # lines[i].set_data([link[0][0], link[1][0]],
-        #                   [link[0][1], link[1][1]])
-        # lines[i].set_3d_properties([link[0][2], link[1][2]])
         lines[i].set_data_3d([link[0][0], link[1][0]],
                              [link[0][1], link[1][1]],
                              [link[0][2], link[1][2]])
@@ -42,10 +39,12 @@ def update(frame, link_ends_list, lines, points):
     points.set_offsets(np.c_[joints[:, 0], joints[:, 1]])
     points.set_3d_properties(joints[:, 2], 'z')
 
+    axis.set_title(f'SIP+FBM\n t={frame * dt: .4f}\n {frame / len(link_ends_list) * 100: .2f}%')
+
     return lines, points
 
 
-def animate_mechanism_3d(link_ends_list):
+def animate_mechanism_3d(link_ends_list, dt):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
@@ -54,7 +53,6 @@ def animate_mechanism_3d(link_ends_list):
     num_links = len(link_ends_start)
 
     lines = []
-
     # Plot links
     for i, link in enumerate(link_ends_start):
         line, = ax.plot([link[0][0], link[1][0]],
@@ -77,6 +75,6 @@ def animate_mechanism_3d(link_ends_list):
     ax.set_aspect('equal', adjustable='box')
 
     anim = FuncAnimation(fig, update, frames=len(link_ends_list),
-                         fargs=(link_ends_list, lines, points), interval=1)
+                         fargs=(link_ends_list, lines, points, ax, dt), interval=dt)
 
     plt.show()

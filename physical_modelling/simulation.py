@@ -1,11 +1,35 @@
 import numpy as np
+import control as ct
 
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple
 from numpy.typing import NDArray
 
-from .dynamics import discrete_forward_dynamics
+from .dynamics import discrete_forward_dynamics, continuous_inverse_dynamics, continuous_state_space_dynamics
 from .forward_kinematics import extended_forward_kinematics, calculate_link_endpoints
+
+
+def _nonlinear_state_equation(t, x, u, params):
+    dx_dt, _ = continuous_state_space_dynamics(params, x, u)
+    return dx_dt
+
+
+def _nonlinear_output_equation(t, x, u, params):
+    # y = x
+    _, y = continuous_state_space_dynamics(params, x, u)
+    return y
+
+
+def simulate_uncontrolled_system(physical_parameters, t_ts, sim_length, q_0, q_dot_0):
+    sys = ct.NonlinearIOSystem(_nonlinear_state_equation,
+                               _nonlinear_output_equation,
+                               inputs=2,  # phi and theta are disturbances
+                               params=physical_parameters)
+    tau = np.zeros((sim_length, 2))
+    x_0 = np.concatenate([q_0, q_dot_0])
+    t, y = ct.input_output_response(sys, t_ts, tau.T, x_0)
+
+    return t, y
 
 
 def simulate_robot(

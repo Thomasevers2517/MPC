@@ -23,15 +23,18 @@ def initialize_physical_parameters() -> Dict[str, float]:
         l_c4=0.045,     # [m]
         l_cp=0.155,     # [m]
         L=0.127,        # [m]
+        g_0=9.81        # [m/s^2]
     )
 
-    # inertias = np.array([I_1, I_2, I_3, I_4, I_px, I_pz])
-    # masses = np.array([m_1, m_2, m_3, m_4, m_p])
-    # lengths = np.array([l_c1, l_c2, l_c3, l_c4, l_cp, L])
-    #
-    # physical_parameters = {'inertias': inertias, 'masses': masses, 'lengths': lengths}
-
     return physical_parameters
+
+
+# initialise simulation time instances
+def generate_t_ts(sim_dt, sim_duration):
+    sim_length = int(sim_duration / sim_dt)
+    t_ts = sim_dt * np.arange(sim_length)
+
+    return t_ts, sim_length
 
 
 def initialize_q(q_1_0, phi_0, theta_0, q_2_0) -> NDArray:
@@ -42,3 +45,11 @@ def initialize_q(q_1_0, phi_0, theta_0, q_2_0) -> NDArray:
 def initialize_q_dot(q_1_dot_0, phi_dot_0, theta_dot_0, q_2_dot_0) -> NDArray:
     q_dot_0 = np.array([q_1_dot_0, phi_dot_0, theta_dot_0, q_2_dot_0])
     return q_dot_0
+
+
+def set_initial_conditions(q_1_0, phi_0, theta_0, q_2_0, q_1_dot_0, phi_dot_0, theta_dot_0, q_2_dot_0):
+    q_0_ = initialize_q(q_1_0, phi_0, theta_0, q_2_0)
+    q_dot_0_ = initialize_q_dot(q_1_dot_0, phi_dot_0, theta_dot_0, q_2_dot_0)
+
+    return q_0_, q_dot_0_
+
