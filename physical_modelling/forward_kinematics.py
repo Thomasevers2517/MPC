@@ -39,6 +39,7 @@ def reduced_forward_kinematics(physical_parameters: Dict, q: NDArray
         x_b = x_b_1
         y_b = y_b_1
     else:
+        raise ValueError('This should not happen')
         x_b = x_b_2
         y_b = y_b_2
 
@@ -250,3 +251,76 @@ def calculate_link_endpoints(physical_parameters: dict, q: NDArray
     link_ends = np.array([link_1_ends, link_2_ends, link_3_ends, link_4_ends, link_p_ends])
 
     return link_ends
+
+
+def generate_ellipse_trajectory(physical_parameters: Dict, t_ts: NDArray, omega: float, x_0: float, y_0: float,
+                                r_x: float, r_y: float = None, ell_angle: float = 0) -> Tuple[NDArray, NDArray]:
+    from .dynamics import continuous_inverse_dynamics
+    from .jacobians import jacobian, jacobian_dot
+    if r_y is None:
+        r_y = r_x
+
+    num_time_steps = t_ts.shape[0]
+    L = physical_parameters['L']
+
+    # some short notations
+    c_omega = np.cos(omega * t_ts)
+    s_omega = np.sin(omega * t_ts)
+    c_ell = np.cos(ell_angle)
+    s_ell = np.sin(ell_angle)
+
+    x_ts = np.array([x_0 + r_x * c_omega * c_ell - r_y * s_omega * s_ell,
+                     y_0 + r_x * c_omega * s_ell + r_y * s_omega * c_ell])
+
+    x_dot_ts = np.array([omega * (-r_x * s_omega * c_ell - r_y * c_omega * s_ell),
+                         omega * (-r_x * s_omega * s_ell + r_y * c_omega * c_ell)])
+
+    x_ddot_ts = np.array([omega**2 * (-r_x * c_omega * c_ell + r_y * s_omega * s_ell),
+                          omega**2 * (-r_x * c_omega * s_ell - r_y * s_omega * c_ell)])
+
+    q_ts = np.zeros((num_time_steps, 4))
+    q_dot_ts = np.zeros((num_time_steps, 4))
+    tau_ts = np.zeros((num_time_steps, 2))
+
+    for i in range(num_time_steps):
+        r_t = x_ts[:, i]
+        x_t = r_t[0]
+        y_t = r_t[1]
+        r_dot_t = x_dot_ts[:, i]
+        x_dot_t = r_dot_t[0]
+        y_dot_t = r_dot_t[1]
+
+        r_offset = np.array([2 * L, 0])
+        r_t_norm = np.linalg.norm(r_t)
+        r_diff_norm = np.linalg.norm(r_t - r_offset)
+
+        q_1_i = np.arctan2(y_t, x_t) - np.arccos(r_t_norm / (2 * L))
+        q_2_i = np.arctan2(y_t, x_t - 2 * L) - np.arccos(r_diff_norm / (2 * L))
+        q_1_dot_i = ((2 * x_t * x_dot_t + 2 * y_t * y_dot_t) /
+                     (4 * L * r_t_norm) * np.sqrt(1 - (r_t_norm / (2 * L)) ** 2)
+                     + (y_dot_t / x_t - y_t * x_dot_t / x_t**2) / (1 + (y_t / x_t)**2))
+        q_2_dot_i = ((2 * (x_t - 2 * L) * x_dot_t + 2 * y_t * y_dot_t) /
+                     (4 * L * r_diff_norm * np.sqrt(1 - (r_diff_norm / (2 * L)) ** 2)
+                      + (y_dot_t / x_t - y_t * x_dot_t / x_t**2) / (1 + (2 * L - x_t / y_t)**2)))
+
+        q_i = np.array([q_1_i, 0, 0, q_2_i])
+        q_dot_i = np.array([q_1_dot_i, 0, 0, q_2_dot_i])
+
+        J = jacobian(physical_parameters, q_i)
+        J_dot = jacobian_dot(physical_parameters, q_i, q_dot_i)
+        q_dot_i_alt_ = np.linalg.inv(J) @ np.array([x_t, y_t, 0, 0])
+        q_dot_i_alt = np.array([q_dot_i_alt_[0], 0, 0, q_dot_i_alt_[3]])
+
+        x_ddot_i = np.array([x_ddot_ts[0, i], x_ddot_ts[1, i], 0, 0])
+        q_ddot_i = np.linalg.inv(J) @ (x_ddot_i - J_dot @ q_dot_i)
+
+        tau_i = continuous_inverse_dynamics(physical_parameters, q_i, q_dot_i, q_ddot_i)
+
+        q_ts[:, i] = q_i
+        q_dot_ts[:, i] = q_dot_i
+        tau_ts[:, i] = tau_i[[0, 3]]
+
+    y_ref = np.concatenate([q_ts, q_dot_ts])
+    u_ref = tau_ts
+
+    return y_ref, u_ref

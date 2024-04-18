@@ -98,7 +98,7 @@ def define_symbols() -> Tuple[sp.Symbol, Dict[str, sp.Symbol], sp.Matrix, sp.Mat
     return t, parameters, q, q_dot, rho, rho_dot, substitution_old, substitution_new
 
 
-def simplify_and_substitute(expression, old: List = None, new: List = None):
+def simplify_and_substitute(expression, old: List = None, new: List = None, simplify: bool = True):
     _, _, _, _, _, _, substitution_old, substitution_new = define_symbols()
     if old is None:
         old = substitution_old
@@ -109,13 +109,17 @@ def simplify_and_substitute(expression, old: List = None, new: List = None):
 
     subs_dict = dict(zip(old, new))
 
+    if simplify:
+        simplified = sp.simplify(expression)
+        simplified_and_subbed = simplified.subs(subs_dict)
+        result = simplified_and_subbed
+    else:
+        # subbed = expression.subs(subs_dict)
+        subbed = expression.xreplace(subs_dict)
+        result = subbed
+
     # subbed = expression.subs(subs_dict)
     # subbed_and_simplified = sp.simplify(subbed)
-
-    simplified = sp.simplify(expression)
-    simplified_and_subbed = simplified.subs(subs_dict)
-
-    result = simplified_and_subbed
 
     return result
 
@@ -199,7 +203,7 @@ def symbolic_forward_kinematics_positions(CoM_or_joint: str) -> List[sp.Matrix]:
         return r_joints
 
 
-def symbolic_forward_kinematics_velocities_and_accelerations(CoM_or_joint: str = 'CoM'
+def symbolic_forward_kinematics_velocities_and_accelerations(CoM_or_joint: str = 'CoM', simplify: bool = True
 ) -> Tuple[List[sp.Matrix], List[sp.Matrix], List[sp.Matrix]]:
     t, _, _, _, rho, rho_dot, _, _ = define_symbols()
 
@@ -229,34 +233,34 @@ def symbolic_forward_kinematics_velocities_and_accelerations(CoM_or_joint: str =
     r_E_0 = r_joint[4]
     r_P_0 = r_joint[5]
 
-    r_A_dot_0 = simplify_and_substitute(sp.diff(r_A_0, t))
-    r_B_dot_0 = simplify_and_substitute(sp.diff(r_B_0, t))
-    r_C_dot_0 = simplify_and_substitute(sp.diff(r_C_0, t))
-    r_D_dot_0 = simplify_and_substitute(sp.diff(r_D_0, t))
-    r_E_dot_0 = simplify_and_substitute(sp.diff(r_E_0, t))
-    r_P_dot_0 = simplify_and_substitute(sp.diff(r_P_0, t))
+    r_A_dot_0 = simplify_and_substitute(sp.diff(r_A_0, t), simplify=simplify)
+    r_B_dot_0 = simplify_and_substitute(sp.diff(r_B_0, t), simplify=simplify)
+    r_C_dot_0 = simplify_and_substitute(sp.diff(r_C_0, t), simplify=simplify)
+    r_D_dot_0 = simplify_and_substitute(sp.diff(r_D_0, t), simplify=simplify)
+    r_E_dot_0 = simplify_and_substitute(sp.diff(r_E_0, t), simplify=simplify)
+    r_P_dot_0 = simplify_and_substitute(sp.diff(r_P_0, t), simplify=simplify)
     r_joints_dot = [r_A_dot_0, r_B_dot_0, r_C_dot_0, r_D_dot_0, r_E_dot_0, r_P_dot_0]
 
-    r_CoM_1_dot_0 = simplify_and_substitute(sp.diff(r_CoM_1_0, t))
-    r_CoM_2_dot_0 = simplify_and_substitute(sp.diff(r_CoM_2_0, t))
-    r_CoM_3_dot_0 = simplify_and_substitute(sp.diff(r_CoM_3_0, t))
-    r_CoM_4_dot_0 = simplify_and_substitute(sp.diff(r_CoM_4_0, t))
-    r_CoM_P_dot_0 = simplify_and_substitute(sp.diff(r_CoM_P_0, t))
+    r_CoM_1_dot_0 = simplify_and_substitute(sp.diff(r_CoM_1_0, t), simplify=simplify)
+    r_CoM_2_dot_0 = simplify_and_substitute(sp.diff(r_CoM_2_0, t), simplify=simplify)
+    r_CoM_3_dot_0 = simplify_and_substitute(sp.diff(r_CoM_3_0, t), simplify=simplify)
+    r_CoM_4_dot_0 = simplify_and_substitute(sp.diff(r_CoM_4_0, t), simplify=simplify)
+    r_CoM_P_dot_0 = simplify_and_substitute(sp.diff(r_CoM_P_0, t), simplify=simplify)
     r_CoM_dot = [r_CoM_1_dot_0, r_CoM_2_dot_0, r_CoM_3_dot_0, r_CoM_4_dot_0, r_CoM_P_dot_0]
 
-    r_A_ddot_0 = simplify_and_substitute(sp.diff(r_A_0, t, 2))
-    r_B_ddot_0 = simplify_and_substitute(sp.diff(r_B_0, t, 2))
-    r_C_ddot_0 = simplify_and_substitute(sp.diff(r_C_0, t, 2))
-    r_D_ddot_0 = simplify_and_substitute(sp.diff(r_D_0, t, 2))
-    r_E_ddot_0 = simplify_and_substitute(sp.diff(r_E_0, t, 2))
-    r_P_ddot_0 = simplify_and_substitute(sp.diff(r_P_0, t, 2))
+    r_A_ddot_0 = simplify_and_substitute(sp.diff(r_A_0, t, 2), simplify=simplify)
+    r_B_ddot_0 = simplify_and_substitute(sp.diff(r_B_0, t, 2), simplify=simplify)
+    r_C_ddot_0 = simplify_and_substitute(sp.diff(r_C_0, t, 2), simplify=simplify)
+    r_D_ddot_0 = simplify_and_substitute(sp.diff(r_D_0, t, 2), simplify=simplify)
+    r_E_ddot_0 = simplify_and_substitute(sp.diff(r_E_0, t, 2), simplify=simplify)
+    r_P_ddot_0 = simplify_and_substitute(sp.diff(r_P_0, t, 2), simplify=simplify)
     r_joints_ddot = [r_A_ddot_0, r_B_ddot_0, r_C_ddot_0, r_D_ddot_0, r_E_ddot_0, r_P_ddot_0]
 
-    r_CoM_1_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_1_0, t, 2))
-    r_CoM_2_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_2_0, t, 2))
-    r_CoM_3_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_3_0, t, 2))
-    r_CoM_4_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_4_0, t, 2))
-    r_CoM_P_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_P_0, t, 2))
+    r_CoM_1_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_1_0, t, 2), simplify=simplify)
+    r_CoM_2_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_2_0, t, 2), simplify=simplify)
+    r_CoM_3_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_3_0, t, 2), simplify=simplify)
+    r_CoM_4_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_4_0, t, 2), simplify=simplify)
+    r_CoM_P_ddot_0 = simplify_and_substitute(sp.diff(r_CoM_P_0, t, 2), simplify=simplify)
     r_CoM_ddot = [r_CoM_1_ddot_0, r_CoM_2_ddot_0, r_CoM_3_ddot_0, r_CoM_4_ddot_0, r_CoM_P_ddot_0]
 
     R_b_0 = rotation_matrix('z', q_1 + beta_1)
@@ -273,10 +277,10 @@ def symbolic_forward_kinematics_velocities_and_accelerations(CoM_or_joint: str =
                            sp.simplify(omega_P_0_cross[1, 0])])
     omega = [omega_1_0, omega_2_0, omega_3_0, omega_4_0, omega_P_0]
 
-    omega_P_0_cross_simp = simplify_and_substitute(sp.diff(R_p_0, t) * R_p_0.T)
-    omega_P_0_simp = sp.Matrix([simplify_and_substitute(omega_P_0_cross_simp[2, 1]),
-                                simplify_and_substitute(omega_P_0_cross_simp[0, 2]),
-                                simplify_and_substitute(omega_P_0_cross_simp[1, 0])])
+    omega_P_0_cross_simp = simplify_and_substitute(sp.diff(R_p_0, t) * R_p_0.T, simplify=simplify)
+    omega_P_0_simp = sp.Matrix([simplify_and_substitute(omega_P_0_cross_simp[2, 1], simplify=simplify),
+                                simplify_and_substitute(omega_P_0_cross_simp[0, 2], simplify=simplify),
+                                simplify_and_substitute(omega_P_0_cross_simp[1, 0], simplify=simplify)])
 
     assert CoM_or_joint.lower() in ['com', 'joint'], "Can only return CoM or joint positions"
 
@@ -357,7 +361,7 @@ def calculate_jacobians() -> Tuple[List[sp.Matrix], List[sp.Matrix]]:
     return J_v, J_omega
 
 
-def calculate_dynamical_matrices() -> Tuple[sp.Matrix, sp.Matrix, sp.Matrix]:
+def calculate_dynamical_matrices(simplify: bool = True) -> Tuple[sp.Matrix, sp.Matrix, sp.Matrix]:
     t, parameters, _, _, rho, rho_dot, _, _ = define_symbols()
 
     m_1 = parameters['m_1']
@@ -395,7 +399,7 @@ def calculate_dynamical_matrices() -> Tuple[sp.Matrix, sp.Matrix, sp.Matrix]:
                                 + J_omega_2_0.T * I_2_0 * J_omega_2_0
                                 + J_omega_3_0.T * I_3_0 * J_omega_3_0
                                 + J_omega_4_0.T * I_4_0 * J_omega_4_0
-                                + J_omega_P_0.T * I_P_0 * J_omega_P_0)
+                                + J_omega_P_0.T * I_P_0 * J_omega_P_0, simplify=simplify)
 
     C = sp.zeros(6)
     for k in range(C.shape[0]):
@@ -413,7 +417,7 @@ def calculate_dynamical_matrices() -> Tuple[sp.Matrix, sp.Matrix, sp.Matrix]:
             C_kj = C_kj_expr
             C[k, j] = C_kj
 
-    C = sp.nsimplify(simplify_and_substitute(C))
+    C = sp.nsimplify(simplify_and_substitute(C, simplify=simplify))
 
     r_CoM = symbolic_forward_kinematics_positions('CoM')
     r_CoM_P_0 = r_CoM[4]
@@ -424,7 +428,7 @@ def calculate_dynamical_matrices() -> Tuple[sp.Matrix, sp.Matrix, sp.Matrix]:
     return M, C, g
 
 
-def projection_matrix() -> Tuple[sp.Matrix, sp.Matrix]:
+def projection_matrix(simplify: bool = True) -> Tuple[sp.Matrix, sp.Matrix]:
     t, _, _, _, rho, _, _, _ = define_symbols()
 
     q_1 = rho[0]
@@ -443,20 +447,162 @@ def projection_matrix() -> Tuple[sp.Matrix, sp.Matrix]:
                    [0,         0, 1, 0],
                    [0,         0, 0, 1],
                    [J_beta_21, 0, 0, J_beta_22]])
-    R_dot = sp.simplify(sp.diff(R, t))
+    R_dot = sp.simplify(sp.diff(R, t), simplify=simplify)
 
     return R, R_dot
 
 
-def reduced_dynamic_matrices() -> Tuple[sp.Matrix, sp.Matrix, sp.Matrix]:
-    M, C, g = calculate_dynamical_matrices()
-    R, R_dot = projection_matrix()
+def reduced_dynamic_matrices(simplify: bool = True) -> Tuple[sp.Matrix, sp.Matrix, sp.Matrix]:
+    M, C, g = calculate_dynamical_matrices(simplify=simplify)
+    R, R_dot = projection_matrix(simplify=simplify)
 
-    M_bar = simplify_and_substitute(R.T * M * R)
-    C_bar = simplify_and_substitute(R.T * C * R + R.T * M * R_dot)
-    g_bar = simplify_and_substitute(R.T * g)
+    M_bar = R.T * M * R
+    C_bar = R.T * C * R + R.T * M * R_dot
+    g_bar = R.T * g
+
+    M_bar = simplify_and_substitute(M_bar, simplify=simplify)
+    C_bar = simplify_and_substitute(C_bar, simplify=simplify)
+    g_bar = simplify_and_substitute(g_bar, simplify=simplify)
 
     return M_bar, C_bar, g_bar
 
 
-# M, C, g = calculate_dynamical_matrices()
+def linearization():
+    t, _, _, _, rho, rho_dot, _, _ = define_symbols()
+
+    q_1 = rho[0]
+    beta_1 = rho[1]
+    phi = rho[2]
+    theta = rho[3]
+    q_2 = rho[4]
+    beta_2 = rho[5]
+
+    q_1_dot = rho_dot[0]
+    beta_1_dot = rho_dot[1]
+    phi_dot = rho_dot[2]
+    theta_dot = rho_dot[3]
+    q_2_dot = rho_dot[4]
+    beta_2_dot = rho_dot[5]
+
+    t_1 = time()
+    # M, C, g = calculate_dynamical_matrices()
+    M_bar, C_bar, g_bar = reduced_dynamic_matrices(simplify=False)
+    t_2 = time()
+    print(f"Time taken to calculate reduced dynamic matrices: {t_2 - t_1:.2f} s")
+
+    t_1 = time()
+
+    m_r11, m_r12, m_r13, m_r14 = tuple(M_bar[0, :])
+    m_r21, m_r22, m_r23, m_r24 = tuple(M_bar[1, :])
+    m_r31, m_r32, m_r33, m_r34 = tuple(M_bar[2, :])
+    m_r41, m_r42, m_r43, m_r44 = tuple(M_bar[3, :])
+
+    M_bar_det = (  m_r11*m_r22*m_r33*m_r44 - m_r11*m_r22*m_r34*m_r43 - m_r11*m_r23*m_r32*m_r44
+                 + m_r11*m_r23*m_r34*m_r42 + m_r11*m_r24*m_r32*m_r43 - m_r11*m_r24*m_r33*m_r42
+                 - m_r12*m_r21*m_r33*m_r44 + m_r12*m_r21*m_r34*m_r43 + m_r12*m_r23*m_r31*m_r44
+                 - m_r12*m_r23*m_r34*m_r41 - m_r12*m_r24*m_r31*m_r43 + m_r12*m_r24*m_r33*m_r41
+                 + m_r13*m_r21*m_r32*m_r44 - m_r13*m_r21*m_r34*m_r42 - m_r13*m_r22*m_r31*m_r44
+                 + m_r13*m_r22*m_r34*m_r41 + m_r13*m_r24*m_r31*m_r42 - m_r13*m_r24*m_r32*m_r41
+                 - m_r14*m_r21*m_r32*m_r43 + m_r14*m_r21*m_r33*m_r42 + m_r14*m_r22*m_r31*m_r43
+                 - m_r14*m_r22*m_r33*m_r41 - m_r14*m_r23*m_r31*m_r42 + m_r14*m_r23*m_r32*m_r41)
+
+    M_bar_adj = sp.Matrix([[  m_r22 * m_r33 * m_r44 - m_r22 * m_r34 * m_r43 - m_r23 * m_r32 * m_r44
+                            + m_r23 * m_r34 * m_r42 + m_r24 * m_r32 * m_r43 - m_r24 * m_r33 * m_r42,
+                              m_r12 * m_r34 * m_r43 - m_r12 * m_r33 * m_r44 + m_r13 * m_r32 * m_r44
+                            - m_r13 * m_r34 * m_r42 - m_r14 * m_r32 * m_r43 + m_r14 * m_r33 * m_r42,
+                              m_r12 * m_r23 * m_r44 - m_r12 * m_r24 * m_r43 - m_r13 * m_r22 * m_r44
+                            + m_r13 * m_r24 * m_r42 + m_r14 * m_r22 * m_r43 - m_r14 * m_r23 * m_r42,
+                              m_r12 * m_r24 * m_r33 - m_r12 * m_r23 * m_r34 + m_r13 * m_r22 * m_r34
+                            - m_r13 * m_r24 * m_r32 - m_r14 * m_r22 * m_r33 + m_r14 * m_r23 * m_r32],
+                           [  m_r21 * m_r34 * m_r43 - m_r21 * m_r33 * m_r44 + m_r23 * m_r31 * m_r44
+                            - m_r23 * m_r34 * m_r41 - m_r24 * m_r31 * m_r43 + m_r24 * m_r33 * m_r41,
+                              m_r11 * m_r33 * m_r44 - m_r11 * m_r34 * m_r43 - m_r13 * m_r31 * m_r44
+                            + m_r13 * m_r34 * m_r41 + m_r14 * m_r31 * m_r43 - m_r14 * m_r33 * m_r41,
+                              m_r11 * m_r24 * m_r43 - m_r11 * m_r23 * m_r44 + m_r13 * m_r21 * m_r44
+                            - m_r13 * m_r24 * m_r41 - m_r14 * m_r21 * m_r43 + m_r14 * m_r23 * m_r41,
+                              m_r11 * m_r23 * m_r34 - m_r11 * m_r24 * m_r33 - m_r13 * m_r21 * m_r34
+                            + m_r13 * m_r24 * m_r31 + m_r14 * m_r21 * m_r33 - m_r14 * m_r23 * m_r31],
+                           [  m_r21 * m_r32 * m_r44 - m_r21 * m_r34 * m_r42 - m_r22 * m_r31 * m_r44
+                            + m_r22 * m_r34 * m_r41 + m_r24 * m_r31 * m_r42 - m_r24 * m_r32 * m_r41,
+                              m_r11 * m_r34 * m_r42 - m_r11 * m_r32 * m_r44 + m_r12 * m_r31 * m_r44
+                            - m_r12 * m_r34 * m_r41 - m_r14 * m_r31 * m_r42 + m_r14 * m_r32 * m_r41,
+                              m_r11 * m_r22 * m_r44 - m_r11 * m_r24 * m_r42 - m_r12 * m_r21 * m_r44
+                            + m_r12 * m_r24 * m_r41 + m_r14 * m_r21 * m_r42 - m_r14 * m_r22 * m_r41,
+                              m_r11 * m_r24 * m_r32 - m_r11 * m_r22 * m_r34 + m_r12 * m_r21 * m_r34
+                            - m_r12 * m_r24 * m_r31 - m_r14 * m_r21 * m_r32 + m_r14 * m_r22 * m_r31],
+                           [  m_r21 * m_r33 * m_r42 - m_r21 * m_r32 * m_r43 + m_r22 * m_r31 * m_r43
+                            - m_r22 * m_r33 * m_r41 - m_r23 * m_r31 * m_r42 + m_r23 * m_r32 * m_r41,
+                              m_r11 * m_r32 * m_r43 - m_r11 * m_r33 * m_r42 - m_r12 * m_r31 * m_r43
+                            + m_r12 * m_r33 * m_r41 + m_r13 * m_r31 * m_r42 - m_r13 * m_r32 * m_r41,
+                              m_r11 * m_r23 * m_r42 - m_r11 * m_r22 * m_r43 + m_r12 * m_r21 * m_r43
+                            - m_r12 * m_r23 * m_r41 - m_r13 * m_r21 * m_r42 + m_r13 * m_r22 * m_r41,
+                              m_r11 * m_r22 * m_r33 - m_r11 * m_r23 * m_r32 - m_r12 * m_r21 * m_r33
+                            + m_r12 * m_r23 * m_r31 + m_r13 * m_r21 * m_r32 - m_r13 * m_r22 * m_r31]])
+
+    M_bar_inv = M_bar_adj / M_bar_det
+
+    t_2 = time()
+    print(f"Time taken to calculate inverse of M: {t_2 - t_1:.2f} s")
+
+
+    tau_1, tau_phi, tau_theta, tau_2 = sp.symbols('tau_1, tau_phi, tau_theta, tau_2')
+    tau = sp.Matrix([tau_1, tau_phi, tau_theta, tau_2])
+
+    q_dot = sp.Matrix([q_1_dot, phi_dot, theta_dot, q_2_dot])
+    t_1 = time()
+    q_ddot = M_bar_inv * (tau - C_bar * q_dot - g_bar)
+    t_2 = time()
+    print(f"Time taken to calculate q_ddot: {t_2 - t_1:.2f} s")
+
+    f = sp.Matrix([q_dot, q_ddot])
+
+    x = sp.Matrix([q_1, phi, theta, q_2, q_1_dot, phi_dot, theta_dot, q_2_dot])
+
+    q_1_eq, q_2_eq = sp.symbols('q_1_eq, q_2_eq')
+
+    x_eq = sp.Matrix([q_1_eq, 0, 0, q_2_eq, 0, 0, 0, 0])
+    tau_eq = sp.Matrix([0, 0, 0, 0])
+
+    t_1 = time()
+    A = f.jacobian(x)
+    t_2 = time()
+    print(f"Time taken to calculate A: {t_2 - t_1:.2f} s")
+    t_1 = time()
+    B = f.jacobian(tau)
+    t_2 = time()
+    print(f"Time taken to calculate B: {t_2 - t_1:.2f} s")
+
+    t_1 = time()
+    A_sub1 = simplify_and_substitute(A, simplify=False)
+    t_2 = time()
+    print(f"Time taken to substitute A step 1: {t_2 - t_1:.2f} s")
+    t_1 = time()
+    A_sub2 = A_sub1.subs(dict(zip(x.T.tolist()[0] + tau.T.tolist()[0], x_eq.T.tolist()[0] + tau_eq.T.tolist()[0])))
+    t_2 = time()
+    print(f"Time taken to substitute A step 2: {t_2 - t_1:.2f} s")
+
+    t_1 = time()
+    B_sub1 = simplify_and_substitute(B, simplify=False)
+    t_2 = time()
+    print(f"Time taken to substitute B step 1: {t_2 - t_1:.2f} s")
+    t_1 = time()
+    B_sub2 = B_sub1.subs(dict(zip(x.T.tolist()[0] + tau.T.tolist()[0], x_eq.T.tolist()[0] + tau_eq.T.tolist()[0])))
+    t_2 = time()
+    print(f"Time taken to substitute B step 2: {t_2 - t_1:.2f} s")
+
+    t_1 = time()
+    A_simp = sp.simplify(A_sub2)
+    t_2 = time()
+    print(f"Time taken to simplify A: {t_2 - t_1:.2f} s")
+    t_1 = time()
+    B_simp = sp.simplify(B_sub2)
+    t_2 = time()
+    print(f"Time taken to simplify B: {t_2 - t_1:.2f} s")
+
+    return A_simp, B_simp
+
+
+A, B = linearization()
+
+pass
+pass

@@ -90,7 +90,7 @@ def cont2discrete_zoh(
 
     # Need to stack zeros under the A and B matrices
     em_lower = np.hstack((np.zeros((B.shape[1], A.shape[0])),
-                           np.zeros((B.shape[1], B.shape[1]))))
+                          np.zeros((B.shape[1], B.shape[1]))))
 
     em = np.vstack((em_upper, em_lower))
     ms = linalg.expm(dt * em)

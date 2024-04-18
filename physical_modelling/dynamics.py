@@ -92,6 +92,7 @@ def discrete_forward_dynamics(
     p_D = np.array([2 * L + L * np.cos(q_2), L * np.sin(q_2)])
     if np.linalg.norm(p_B - p_D) > 2 * L:
         q_next[[0, 3]] = q_curr[[0, 3]]
+        raise ValueError("Next step is invalid")
 
     return q_next, q_dot_next, q_ddot
 
